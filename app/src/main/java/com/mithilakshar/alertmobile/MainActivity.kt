@@ -1,9 +1,11 @@
 package com.mithilakshar.alertmobile
 
+import android.content.Context
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.os.Bundle
 import android.view.View
@@ -21,7 +23,7 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
     private var acceleration =0f
     private var accelerationcurrent=0f
     private var accelerationlast=0f
-    private var threshold=10.0f
+    private var threshold=9.9f
     private lateinit var mediaPlayer: MediaPlayer
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,8 +36,8 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
             insets
         }
-
-        mediaPlayer=MediaPlayer.create(this,R.raw.police)
+        setVolumeToMax(this)
+        mediaPlayer=MediaPlayer.create(this,R.raw.murder)
         mediaPlayer.isLooping=true
 
         sensormanager=getSystemService(SENSOR_SERVICE) as SensorManager
@@ -46,33 +48,44 @@ class MainActivity : AppCompatActivity(),SensorEventListener {
 
     }
 
-    override fun onSensorChanged(p0: SensorEvent?) {
-       val x=p0?.values?.get(0) ?:0f
-       val y=p0?.values?.get(1) ?:0f
-       val z=p0?.values?.get(2) ?:0f
+    override fun onSensorChanged(event: SensorEvent?) {
+        event?.let {
+            val x = it.values.getOrNull(0) ?: 0f
+            val y = it.values.getOrNull(1) ?: 0f
+            val z = it.values.getOrNull(2) ?: 0f
 
-        accelerationlast=accelerationcurrent
-        accelerationcurrent=kotlin.math.sqrt((x*x+y*y+z*z).toDouble()).toFloat()
-        val delta=kotlin.math.abs(accelerationcurrent-accelerationlast)
-        acceleration=acceleration*0.7f+delta
+            // Calculate current acceleration
+            accelerationlast = accelerationcurrent
+            accelerationcurrent = kotlin.math.sqrt((x * x + y * y + z * z).toDouble()).toFloat()
 
-        if (acceleration>threshold){
+            // Calculate the delta change in acceleration
+            val delta = kotlin.math.abs(accelerationcurrent - accelerationlast)
 
-            binding.apply {
+            // Increase sensitivity by reducing the smoothing factor
+            acceleration = acceleration * 0.95f + delta // Lower factor for higher sensitivity
 
-                text.text="ON"
-                text.setTextColor(ActivityCompat.getColor(this@MainActivity,R.color.RED))
-                mediaPlayer.start()
-                animationView.visibility=View.VISIBLE
-                imageView.visibility=View.GONE
-
-
+            // Check if the change exceeds the threshold
+            if (acceleration > threshold) {
+                binding.apply {
+                    text.text = "ON"
+                    text.setTextColor(ActivityCompat.getColor(this@MainActivity, R.color.RED))
+                    mediaPlayer.start()
+                    imageView.visibility = View.GONE
+                }
             }
         }
-
     }
+
 
     override fun onAccuracyChanged(p0: Sensor?, p1: Int) {
         //
+    }
+
+    fun setVolumeToMax(context: Context) {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        // Get the maximum volume level
+        val maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        // Set the volume to the maximum level
+        audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, maxVolume, 0)
     }
 }
